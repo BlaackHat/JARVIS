@@ -1,0 +1,8 @@
+{
+  "name": "Copy of J.A.R.V.I.S. Mainframe HUD",
+  "description": "A sophisticated AI assistant interface styled after the Iron Man HUD, featuring real-time voice interaction, system monitoring, and multimodal analysis capabilities.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
