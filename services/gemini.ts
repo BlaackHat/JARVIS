@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, Type, Modality } from "@google/genai";
+import { GoogleGenAI, Modality } from "@google/genai";
 import { JARVIS_SYSTEM_PROMPT } from "../constants";
 
 export const generateJarvisResponseStream = async (
@@ -10,7 +10,7 @@ export const generateJarvisResponseStream = async (
 ) => {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const contents: any[] = history.length > 0 ? history : [];
+    const contents: any[] = history.length > 0 ? [...history] : [];
     const currentParts: any[] = [{ text: prompt }];
     
     if (imageBuffer) {
@@ -24,7 +24,7 @@ export const generateJarvisResponseStream = async (
 
     contents.push({ role: "user", parts: currentParts });
 
-    const response = await ai.models.generateContent({
+    const responseStream = await ai.models.generateContentStream({
       model: "gemini-3-flash-preview",
       contents,
       config: {
@@ -35,24 +35,36 @@ export const generateJarvisResponseStream = async (
       },
     });
 
-    const text = response.text;
-    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-    const links = groundingChunks
-      .filter((chunk: any) => chunk.web)
-      .map((chunk: any) => ({
-        title: chunk.web.title || "Reference Source",
-        uri: chunk.web.uri
-      }));
+    let fullText = "";
+    let links: { title: string; uri: string }[] = [];
 
-    if (text) {
-      onChunk(text);
+    for await (const chunk of responseStream) {
+      const text = chunk.text;
+      if (text) {
+        fullText += text;
+        onChunk(fullText);
+      }
+      
+      // Extract grounding metadata from the stream chunks
+      if (chunk.candidates?.[0]?.groundingMetadata?.groundingChunks) {
+        const newLinks = chunk.candidates[0].groundingMetadata.groundingChunks
+          .filter((c: any) => c.web)
+          .map((c: any) => ({
+            title: c.web.title || "Reference Source",
+            uri: c.web.uri
+          }));
+        links = [...links, ...newLinks];
+      }
     }
     
-    return { text: text || "Mainframe returned no data, Sir Rezwan.", links };
+    // Deduplicate links by URI
+    const uniqueLinks = Array.from(new Map(links.map(item => [item.uri, item])).values());
+    
+    return { text: fullText, links: uniqueLinks };
   } catch (error: any) {
     console.error("Gemini Intel Error:", error);
     return { 
-      text: `I'm afraid the connection to the global intel network is currently unstable, Sir Rezwan. (Error: ${error.message || 'Unknown Network Interruption'})`, 
+      text: `Sir Rezwan, it appears there is a temporary disruption in the global mainframe uplink. (Error: ${error.message || 'Unknown Protocol Failure'})`, 
       links: [] 
     };
   }
