@@ -14,7 +14,7 @@ const App: React.FC = () => {
     {
       id: '1',
       role: 'jarvis',
-      content: 'System fully operational, Sir Rezwan. The global mainframe is at your disposal. What is our first objective?',
+      content: 'System fully operational, Sir Rezwan. The global mainframe is at your disposal. I have verified the secure uplink; we are ready for your commands.',
       timestamp: new Date()
     }
   ]);
@@ -113,7 +113,7 @@ const App: React.FC = () => {
       const reader = new FileReader();
       reader.onload = (event) => {
         setPendingImage(event.target?.result as string);
-        setUserInput(`Sir Rezwan, I've scanned this. Analyzing via global mainframe...`);
+        setUserInput(`Sir Rezwan, I've scanned this payload. Analyzing via global mainframe...`);
       };
       reader.readAsDataURL(file);
     }
@@ -149,7 +149,6 @@ const App: React.FC = () => {
     const result = await generateJarvisResponseStream(text, (fullText) => {
       setMessages(prev => prev.map(m => m.id === jarvisId ? { ...m, content: fullText } : m));
       
-      // Proactive sentence vocalization
       const segments = fullText.match(/[^.!?]+[.!?]+/g);
       if (segments && segments.length > lastSpokenIndex) {
         for (let i = lastSpokenIndex; i < segments.length; i++) {
@@ -161,7 +160,6 @@ const App: React.FC = () => {
       accumulatedText = fullText;
     }, history, pendingImage || undefined);
 
-    // Finalize the message with links and full text
     setMessages(prev => prev.map(m => m.id === jarvisId ? { 
       ...m, 
       content: result.text, 
@@ -170,7 +168,6 @@ const App: React.FC = () => {
 
     setPendingImage(null);
 
-    // Catch any remaining text for vocalization
     const processedSoFar = (fullText: string, index: number) => {
         const segs = fullText.match(/[^.!?]+[.!?]+/g) || [];
         return segs.slice(0, index).join(' ');
@@ -325,8 +322,8 @@ const App: React.FC = () => {
           <div className="flex gap-2 items-center text-[10px] mono">
             <span className="px-2 py-0.5 border border-[#00D4FF]/30 bg-[#00D4FF]/5 rounded-sm">V.3.5.REZWAN</span>
             <span className="flex items-center gap-1">
-              <span className={`w-1.5 h-1.5 rounded-full ${isVoiceActive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
-              {isVoiceActive ? 'VOICE UPLINK ACTIVE' : 'VOICE OFFLINE'}
+              <span className={`w-1.5 h-1.5 rounded-full ${process.env.API_KEY ? 'bg-green-500 shadow-[0_0_5px_#22c55e]' : 'bg-red-500 shadow-[0_0_5px_#ef4444]'}`}></span>
+              {process.env.API_KEY ? 'ENCRYPTED UPLINK SECURE' : 'UPLINK DISCONNECTED'}
             </span>
             {appState === AppState.THINKING && <span className="text-xs ml-2 text-white animate-pulse uppercase tracking-[0.2em]">Neural Synthesis...</span>}
           </div>
@@ -334,7 +331,7 @@ const App: React.FC = () => {
         <div className="flex gap-4">
            <div className="text-right flex flex-col items-end">
              <div className="text-2xl font-bold mono">100%</div>
-             <div className="text-[10px] tracking-widest opacity-50 uppercase">Stark Grid Efficiency</div>
+             <div className="text-[10px] tracking-widest opacity-50 uppercase">Identity Verified: REZWAN</div>
            </div>
            <button onClick={toggleVoice} className={`w-10 h-10 border rounded-sm flex items-center justify-center transition-all ${isVoiceActive ? 'border-[#00D4FF] bg-[#00D4FF]/20 shadow-[0_0_10px_#00D4FF]' : 'border-white/10 opacity-30 hover:opacity-100'}`}>
              <i className={`fas fa-microphone${isVoiceActive ? '' : '-slash'}`}></i>
@@ -375,7 +372,7 @@ const App: React.FC = () => {
           <ArcReactor active={appState !== AppState.IDLE} />
           <div className="w-full flex flex-col gap-4">
             <div className="hud-glass p-4 rounded-sm border-r-4 border-r-[#00D4FF]">
-              <h4 className="text-[11px] font-bold uppercase tracking-widest mb-3 opacity-60 text-[#00D4FF]">Sir Rezwan Link Node</h4>
+              <h4 className="text-[11px] font-bold uppercase tracking-widest mb-3 opacity-60 text-[#00D4FF]">Uplink Integrity Node</h4>
               <div className="flex gap-1 h-8">
                 {[...Array(20)].map((_, i) => (
                   <div key={i} className={`flex-1 transition-all duration-300 ${appState !== AppState.IDLE ? (Math.random() > 0.4 ? 'bg-[#00D4FF]' : 'bg-[#00D4FF]/20') : 'bg-[#00D4FF]/10'}`} />
