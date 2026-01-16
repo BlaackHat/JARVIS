@@ -24,7 +24,7 @@ export const generateJarvisResponseStream = async (
 
     contents.push({ role: "user", parts: currentParts });
 
-    const responseStream = await ai.models.generateContentStream({
+    const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents,
       config: {
@@ -35,37 +35,24 @@ export const generateJarvisResponseStream = async (
       },
     });
 
-    let fullText = "";
-    let links: { title: string; uri: string }[] = [];
+    const text = response.text;
+    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    const links = groundingChunks
+      .filter((chunk: any) => chunk.web)
+      .map((chunk: any) => ({
+        title: chunk.web.title || "Reference Source",
+        uri: chunk.web.uri
+      }));
 
-    for await (const chunk of responseStream) {
-      const text = chunk.text;
-      if (text) {
-        fullText += text;
-        onChunk(fullText);
-      }
-      
-      // Extract grounding metadata if available in any chunk
-      const groundingChunks = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks;
-      if (groundingChunks) {
-        const newLinks = groundingChunks
-          .filter((c: any) => c.web)
-          .map((c: any) => ({
-            title: c.web.title || "Reference Source",
-            uri: c.web.uri
-          }));
-        links = [...links, ...newLinks];
-      }
+    if (text) {
+      onChunk(text);
     }
     
-    // Deduplicate links
-    const uniqueLinks = Array.from(new Map(links.map(item => [item.uri, item])).values());
-    
-    return { text: fullText, links: uniqueLinks };
-  } catch (error) {
+    return { text: text || "Mainframe returned no data, Sir Rezwan.", links };
+  } catch (error: any) {
     console.error("Gemini Intel Error:", error);
     return { 
-      text: "I'm afraid the connection to the global mainframe is currently unstable, Sir Rezwan. Let's try again.", 
+      text: `I'm afraid the connection to the global intel network is currently unstable, Sir Rezwan. (Error: ${error.message || 'Unknown Network Interruption'})`, 
       links: [] 
     };
   }
@@ -89,8 +76,7 @@ export const speakJarvis = async (text: string) => {
       },
     });
 
-    const audioData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    return audioData || null;
+    return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || null;
   } catch (err) {
     console.error("J.A.R.V.I.S. Vocal Processor Error:", err);
     return null;

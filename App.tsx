@@ -14,7 +14,7 @@ const App: React.FC = () => {
     {
       id: '1',
       role: 'jarvis',
-      content: 'System online. Good to see you, Sir Rezwan. Optical and global search protocols are fully engaged. How shall we proceed?',
+      content: 'Mainframe online. Good to see you, Sir Rezwan. Global intelligence and coding protocols are fully engaged. How shall we proceed?',
       timestamp: new Date()
     }
   ]);
@@ -39,15 +39,6 @@ const App: React.FC = () => {
       bytes[i] = binaryString.charCodeAt(i);
     }
     return bytes;
-  };
-
-  const encode = (bytes: Uint8Array) => {
-    let binary = '';
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary);
   };
 
   const decodeAudioData = async (data: Uint8Array, ctx: AudioContext, sampleRate: number, numChannels: number): Promise<AudioBuffer> => {
@@ -122,7 +113,7 @@ const App: React.FC = () => {
       const reader = new FileReader();
       reader.onload = (event) => {
         setPendingImage(event.target?.result as string);
-        setUserInput(`Sir Rezwan, I've scanned this. Shall I analyze it using the global intel network?`);
+        setUserInput(`Sir Rezwan, I've scanned this item. Shall I search the net for technical data?`);
       };
       reader.readAsDataURL(file);
     }
@@ -152,22 +143,8 @@ const App: React.FC = () => {
       parts: [{ text: m.content }]
     }));
 
-    let accumulatedText = "";
-    let lastSpokenIndex = 0;
-
     const result = await generateJarvisResponseStream(text, (fullText) => {
       setMessages(prev => prev.map(m => m.id === jarvisId ? { ...m, content: fullText } : m));
-      
-      // Early sentence-based vocalization
-      const segments = fullText.match(/[^.!?]+[.!?]+/g);
-      if (segments && segments.length > lastSpokenIndex) {
-        for (let i = lastSpokenIndex; i < segments.length; i++) {
-          ttsQueueRef.current.push(segments[i].trim());
-          processTTSQueue();
-        }
-        lastSpokenIndex = segments.length;
-      }
-      accumulatedText = fullText;
     }, history, pendingImage || undefined);
 
     setMessages(prev => prev.map(m => m.id === jarvisId ? { 
@@ -178,20 +155,17 @@ const App: React.FC = () => {
 
     setPendingImage(null);
 
-    // Final segment vocalization
-    const processedSoFar = (fullText: string, index: number) => {
-        const segs = fullText.match(/[^.!?]+[.!?]+/g) || [];
-        return segs.slice(0, index).join(' ');
-    };
-    const finalTail = accumulatedText.substring(processedSoFar(accumulatedText, lastSpokenIndex).length).trim();
-    if (finalTail) {
-      ttsQueueRef.current.push(finalTail);
-      processTTSQueue();
+    // Vocalization logic for textual responses
+    const sentences = result.text.match(/[^.!?]+[.!?]+/g) || [result.text];
+    for (const sentence of sentences) {
+      ttsQueueRef.current.push(sentence.trim());
     }
+    processTTSQueue();
   };
 
   const startLiveSession = async () => {
     try {
+      // Force cleanup to avoid stale socket "Network error"
       if (currentLiveSessionRef.current) {
         try { currentLiveSessionRef.current.close(); } catch(e) {}
         currentLiveSessionRef.current = null;
@@ -219,12 +193,12 @@ const App: React.FC = () => {
                 const l = inputData.length;
                 const int16 = new Int16Array(l);
                 for (let i = 0; i < l; i++) int16[i] = inputData[i] * 32768;
+                let binary = '';
+                const bytes = new Uint8Array(int16.buffer);
+                for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
                 try { 
                   s.sendRealtimeInput({ 
-                    media: { 
-                      data: encode(new Uint8Array(int16.buffer)), 
-                      mimeType: 'audio/pcm;rate=16000' 
-                    } 
+                    media: { data: btoa(binary), mimeType: 'audio/pcm;rate=16000' } 
                   }); 
                 } catch(err) {}
               }).catch(() => {});
@@ -269,8 +243,8 @@ const App: React.FC = () => {
             if (isVoiceActive) startWakeWordListener();
           },
           onerror: (e) => {
-            console.error("Live Network Error, Sir. Re-initializing link...", e);
-            setAppState(AppState.IDLE);
+            console.error("Uplink unstable, Sir Rezwan. (Network error)", e);
+            setAppState(AppState.ERROR);
             currentLiveSessionRef.current = null;
           }
         },
@@ -278,13 +252,13 @@ const App: React.FC = () => {
           responseModalities: [Modality.AUDIO],
           outputAudioTranscription: {},
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
-          systemInstruction: JARVIS_SYSTEM_PROMPT + "\nYou are in native audio mode for Sir Rezwan. Be brief, professional, and slightly sarcastic."
+          systemInstruction: JARVIS_SYSTEM_PROMPT + "\nNote: You are in native audio mode. Maintain the British polish."
         }
       });
 
       currentLiveSessionRef.current = await sessionPromise;
     } catch (err) {
-      console.error("Critical Uplink failure.", err);
+      console.error("Critical Uplink failure for Sir Rezwan.", err);
       setAppState(AppState.IDLE);
     }
   };
@@ -338,19 +312,19 @@ const App: React.FC = () => {
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-black tracking-[0.3em] glitch-text">J.A.R.V.I.S.</h1>
           <div className="flex gap-2 items-center text-[10px] mono">
-            <span className="px-2 py-0.5 border border-[#00D4FF]/30 bg-[#00D4FF]/5 rounded-sm">V.3.2.REZWAN</span>
+            <span className="px-2 py-0.5 border border-[#00D4FF]/30 bg-[#00D4FF]/5 rounded-sm">V.3.4.REZWAN</span>
             <span className="flex items-center gap-1">
               <span className={`w-1.5 h-1.5 rounded-full ${isVoiceActive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
-              {isVoiceActive ? 'VOICE PROTOCOLS ENGAGED' : 'VOICE OFFLINE'}
+              {isVoiceActive ? 'VOICE UPLINK ACTIVE' : 'VOICE OFFLINE'}
             </span>
-            {appState === AppState.THINKING && <span className="text-xs ml-2 text-white animate-pulse uppercase tracking-[0.2em]">Intel Uplink Active...</span>}
-            {appState === AppState.WAKING && <span className="text-xs ml-2 text-yellow-400 animate-pulse uppercase tracking-[0.2em]">Listening for Wake Word...</span>}
+            {appState === AppState.THINKING && <span className="text-xs ml-2 text-white animate-pulse uppercase tracking-[0.2em]">Intel Retrieval...</span>}
+            {appState === AppState.ERROR && <span className="text-xs ml-2 text-red-500 animate-pulse uppercase tracking-[0.2em]">Network Interruption</span>}
           </div>
         </div>
         <div className="flex gap-4">
            <div className="text-right flex flex-col items-end">
              <div className="text-2xl font-bold mono">100%</div>
-             <div className="text-[10px] tracking-widest opacity-50 uppercase">Grid Efficiency</div>
+             <div className="text-[10px] tracking-widest opacity-50 uppercase">Stark Grid Integrity</div>
            </div>
            <button onClick={toggleVoice} className={`w-10 h-10 border rounded-sm flex items-center justify-center transition-all ${isVoiceActive ? 'border-[#00D4FF] bg-[#00D4FF]/20 shadow-[0_0_10px_#00D4FF]' : 'border-white/10 opacity-30 hover:opacity-100'}`}>
              <i className={`fas fa-microphone${isVoiceActive ? '' : '-slash'}`}></i>
@@ -366,7 +340,7 @@ const App: React.FC = () => {
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center gap-4 opacity-40">
                 <i className="fas fa-eye-slash text-4xl"></i>
-                <p className="text-xs uppercase tracking-widest">Imaging array offline.</p>
+                <p className="text-xs uppercase tracking-widest">Optical scan array offline.</p>
               </div>
             )}
             <button onClick={toggleCamera} className={`absolute bottom-4 right-4 p-3 rounded-full border transition-all ${cameraActive ? 'border-red-500 text-red-500 bg-red-500/10' : 'border-[#00D4FF]/50 text-[#00D4FF] bg-[#00D4FF]/10'}`}>
@@ -391,7 +365,7 @@ const App: React.FC = () => {
           <ArcReactor active={appState !== AppState.IDLE} />
           <div className="w-full flex flex-col gap-4">
             <div className="hud-glass p-4 rounded-sm border-r-4 border-r-[#00D4FF]">
-              <h4 className="text-[11px] font-bold uppercase tracking-widest mb-3 opacity-60 text-[#00D4FF]">Rezwan Intel Node</h4>
+              <h4 className="text-[11px] font-bold uppercase tracking-widest mb-3 opacity-60 text-[#00D4FF]">Rezwan Synaptic Link</h4>
               <div className="flex gap-1 h-8">
                 {[...Array(20)].map((_, i) => (
                   <div key={i} className={`flex-1 transition-all duration-300 ${appState !== AppState.IDLE ? (Math.random() > 0.4 ? 'bg-[#00D4FF]' : 'bg-[#00D4FF]/20') : 'bg-[#00D4FF]/10'}`} />
@@ -399,9 +373,9 @@ const App: React.FC = () => {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              {['MAIL', 'STREAM', 'INTEL', 'PARTY'].map(tool => (
+              {['MAIL', 'STREAM', 'INTEL', 'CODE'].map(tool => (
                 <button key={tool} className="hud-glass p-4 hover:bg-[#00D4FF]/10 transition-colors flex flex-col items-center gap-2 group">
-                  <i className={`fas fa-${tool === 'MAIL' ? 'envelope' : tool === 'STREAM' ? 'play' : tool === 'INTEL' ? 'globe-americas' : 'skull'} opacity-50 group-hover:opacity-100 text-[#00D4FF]`}></i>
+                  <i className={`fas fa-${tool === 'MAIL' ? 'envelope' : tool === 'STREAM' ? 'play' : tool === 'INTEL' ? 'globe-americas' : 'terminal'} opacity-50 group-hover:opacity-100 text-[#00D4FF]`}></i>
                   <span className="text-[10px] tracking-widest font-bold text-[#00D4FF]">{tool}</span>
                 </button>
               ))}
@@ -414,7 +388,7 @@ const App: React.FC = () => {
         <div className="flex gap-4 uppercase tracking-[0.2em]">
           <span>G-FORCE: 1.0G</span>
           <span>LAT: 23.8103° N</span>
-          <span>STARK ACCESS: REZWAN MAYEEN</span>
+          <span>ACCESS: REZWAN MAYEEN</span>
         </div>
         <div className="uppercase">ENCRYPTED STARK MAINLINE — AUTHORIZED ACCESS ONLY</div>
       </footer>
